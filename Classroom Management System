@@ -1,0 +1,159 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define szSTR 64
+#define fileDB "c:\\contact.txt"
+
+struct CONTACT {
+ char num[szSTR];/*教室编号*/
+ char site[szSTR];/*教室位置*/
+ char snum[szSTR];/*座位数*/
+ char tv[szSTR];/*有无多媒体*/
+ char use[szSTR];/*是否可用*/
+};
+
+typedef struct CONTACT CON;
+
+#define ANUM 1
+#define ASITE 2
+#define ASNUM 3
+#define ATV 4
+#define AUSE 5
+#define BFULL 0xFF
+int OPER[6] = {BFULL, ANUM, ASITE, ASNUM, ATV,AUSE};
+
+void input(CON * s, int mask)
+{
+ if(mask & ANUM) { printf("请输入教室编号："); scanf("%s", s->num); }
+ if(mask & ASITE) { printf("请输入教室位置："); scanf("%s", s->site); }
+ if(mask & ASNUM) { printf("请输入座位数："); scanf("%s", s->snum); }
+ if(mask & ATV){printf("请输入是否有多媒体(有/Y*无/N):");scanf("%s",s->tv);}
+ if(mask & AUSE) { printf("请输入是否可用(可/Y*否/N)："); scanf("%s", s->use); }
+}/*end input*/
+
+void show (int id, CON * s)
+{
+ if(!s) return ;
+ if(id) 
+  printf("%d\t%s\t\t%s\t%s\t\t%s\t\t%s\n", 
+   id, s->num , s->site , s->snum , s->tv,s->use );
+ else
+  printf("【编号】%s【教室编号】%s【位置】%s【座位数】%s【有无多媒体】%s【是否可用】%s\n", 
+   s->num , s->site , s->snum , s->tv,s->use );
+ /*end if*/
+}/*end show*/
+
+void regist(void)   
+{
+ CON s; FILE * f = 0;
+ input(&s, BFULL);
+ f = fopen(fileDB, "ab");
+ fwrite(&s,sizeof(s),1,f);
+ fclose(f);
+ printf("资料已保存！\n\n\n\n");
+}/*end regist*/
+
+int browse(char * key, fpos_t * p, CON * s)
+{
+ FILE * f =0; int i = 0, r = 0; CON t;
+ char * a = 0, * b = 0; fpos_t q; 
+ if(!s) return 0;
+ f = fopen(fileDB, "rb");
+ if(!f) {
+  printf("数据库暂无记录\n\n\n\n");
+  return 0;
+ }/*end if*/
+ printf("编号\t教室编号\t位置\t座位数\t有无多媒体(Y/N)\t是否可用(Y/N)\n");
+ printf("----------------------------------------------------------------------\n");
+ while(!feof(f)) {
+  fgetpos(f, &q);
+  r = fread(&t, sizeof(t), 1, f);
+  if(r<1)break;
+  if(t.num[0]==0) continue;
+  if(key) {
+   a = strstr(t.num , key);
+   b = strstr(t.site , key);
+   if(a == 0 && b == 0) continue;
+  }/*end if*/
+  if(p) *p = q;
+  if(s) memcpy(s, &t, sizeof(t));
+  i++;
+  show(i, &t);
+ }/*end while*/
+ fclose(f);
+ printf("----------------------------------------------------------------------\n\n\n\n\n");
+ return i;
+}/*end browse*/
+
+fpos_t query(CON * s)
+{
+ char key[szSTR]=""; fpos_t p = 0; int r = 0;
+ printf("请输入教室编号或者位置：");
+ scanf("%s", key);
+ r = browse(key, &p, s);
+ return r?p:-1;
+}/*end query*/
+
+void clear(void)
+{
+ FILE * f = 0; CON s;
+ fpos_t p = query(&s);
+ if(p<0) return;
+ f = fopen(fileDB, "rb+");
+ fsetpos(f, &p);
+ memset(&s, 0, sizeof(s));
+ fwrite(&s, sizeof(s),1, f);
+ fclose(f);
+ printf("记录已删除！\n\n\n\n\n");
+}/*end clear*/
+
+void modify(void)
+{
+ FILE * f = 0; CON s; int cmd = 0;
+ fpos_t p = query(&s);
+ if(p<0) return;
+ f = fopen(fileDB, "rb+");
+ fsetpos(f, &p);
+ for(;;) {
+  show(0, &s);
+  printf("请选择：1-编号；2-位置；3-座位数；4-有无多媒体；5-是否可用；6-保存并退出；7-放弃修改并退出\n\n\n\n");
+  scanf("%d", &cmd);
+  switch(cmd) {
+  case 1:
+  case 2:
+  case 3:
+  case 4:
+  case 5:
+   input(&s, OPER[cmd]);
+   break;
+  case 6:
+   fsetpos(f, &p);
+   fwrite(&s, sizeof(s), 1, f);
+  case 7:
+   fclose(f);  
+   return;
+  default:
+   printf("错误的操作，请重新输入。\n\n\n\n\n");
+  }/*end case*/
+ }/*mext*/
+}/*end clear*/
+
+
+int main(void)
+{
+ char cmd = 0; CON s;
+ for(;;) {
+  printf("            欢迎使用  教室信息管理系统!\n请选择：\n1-添加；\n2-查询；\n3-删除；\n4-修改；\n5-全部输出；\n0-退出\n\n\n\n");
+  scanf("%d", &cmd);
+  switch(cmd) {
+   case 0: return 0;
+   case 1: regist(); break;
+   case 2: query(&s); break;
+   case 3: clear(); break;
+   case 4: modify(); break;
+   case 5: browse(0, 0, &s); break;
+  }//end case
+ }
+ return 0;
+}
